@@ -954,9 +954,12 @@ indicates how long the [[ref: DID Controller]] expects a copy to stay current.
 
 A client that obtains copies from more than one source can compare them. If
 one extends the other, the longer is the more current. If neither extends the
-other, the log is **duplicitous**: the client should not rely on any version
-after the last entry the copies have in common, and may keep the conflicting
-entries as evidence and report them, for example to [[ref: watchers]].
+other and both pass verification, the log is **duplicitous**: no copy can be
+relied on. As defined in VH-Log's [Comparing Copies of a
+Log](https://swcurran.github.io/VH-Log/next/index.html#comparing-copies-of-a-log),
+resolution fails with `logForked`, including for a requested version before
+the copies diverge. The client may keep the conflicting entries as evidence
+and report them, for example to [[ref: watchers]].
 
 [[ref: Witnesses]] and [[ref: watchers]] address duplicity in different ways:
 
