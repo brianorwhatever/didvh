@@ -23,7 +23,8 @@ only what is specific to `did:vh`, and implementers **MUST** consult
 
 `did:vh` constrains VH-Log by:
 
-- Specifying the [[ref: state]] object as a W3C DID Document ([[ref: DIDDoc]]).
+- Specifying the [[ref: state]] object as a W3C DID Document ([[ref: DIDDoc]]),
+  unless a [`did:vh` extension](#didvh-extensions) defines it otherwise.
 - Naming the log file `did.jsonl` and the witness proofs file
   `did-witness.json`.
 - Defining the DID as `did:vh:<SCID>`, with no location component.
@@ -119,7 +120,8 @@ The `did:vh`-specific constraints are:
   `did-witness.json`, and **MUST** be named `did-witness.json` when stored at
   a location named by a `src` reference.
 - The `state` property of each entry **MUST** contain the [[ref: DIDDoc]] for
-  that version of the DID.
+  that version of the DID, unless the active `method` value is defined by a
+  [`did:vh` extension](#didvh-extensions).
 - The `parameters` property **MUST** follow [`did:vh` DID Method
   Parameters](#didvh-did-method-parameters).
 
@@ -142,6 +144,63 @@ non-exhaustive.
 
 :::
 
+### `did:vh` Extensions
+
+A `did:vh` extension is a published specification that defines one or more
+values of the `method` [[ref: parameter]], distinct from those defined in
+[`did:vh` DID Method Parameters](#didvh-did-method-parameters). A
+[[ref: DID Log]] whose first entry has a `method` value defined by an
+extension is a `did:vh` [[ref: DID Log]], and its DID is `did:vh:<SCID>`.
+Every rule of this specification applies to it, except that the extension
+**MAY**:
+
+1. Define the [[ref: state]] object as something other than a
+   [[ref: DIDDoc]]. An extension that does so **MUST** define how the
+   [[ref: DIDDoc]] for each version is derived from the verified
+   [[ref: DID log entries]] up to and including that version. Derivation
+   **MUST** be deterministic, so that every [[ref: Resolver]] derives the same
+   [[ref: DIDDoc]] from the same [[ref: DID Log]], and the derived
+   [[ref: DIDDoc]]'s top-level `id` **MUST** be `did:vh:<SCID>`.
+2. Define additional [[ref: parameters]].
+3. Define any rule that [[ref: VH-Log]] permits a [[ref: specialisation]] to
+   define, in place of the corresponding rule in this specification.
+
+For each `method` value it defines, an extension **MUST** state the
+[[ref: VH-Log]] version that the value implies, and **MUST** state which of
+the rules above it uses. Moving to a later `method` value **MUST NOT** move a
+[[ref: DID Log]] between an extension and this specification, or between two
+extensions.
+
+A [[ref: Resolver]] that does not implement an extension rejects a
+[[ref: DID Log]] that uses it, because it does not recognise the `method`
+value, as defined in
+[`did:vh` DID Method Parameters](#didvh-did-method-parameters).
+
+::: example
+An extension whose [[ref: state]] object is an application record, not a
+[[ref: DIDDoc]], might derive the [[ref: DIDDoc]] for each version from its
+[[ref: parameters]] and [[ref: state]]: a verification method for each key in
+the active `updateKeys`, and `alsoKnownAs` from a list of aliases in the
+[[ref: state]] object. Resolving the DID returns that derived
+[[ref: DIDDoc]], and the extension defines how the application record itself
+is returned.
+
+```json
+{
+  "@context": ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/multikey/v1"],
+  "id": "did:vh:QmfGEUAcMpzo25kF2Rhn8L5FAXysfGnkzjwdKoNPi615XQ",
+  "verificationMethod": [{
+    "id": "did:vh:QmfGEUAcMpzo25kF2Rhn8L5FAXysfGnkzjwdKoNPi615XQ#z6MkgzBDcBFV3sk4ypPE5YXMZHmS213A3HpYY2LmcVKV15jr",
+    "type": "Multikey",
+    "controller": "did:vh:QmfGEUAcMpzo25kF2Rhn8L5FAXysfGnkzjwdKoNPi615XQ",
+    "publicKeyMultibase": "z6MkgzBDcBFV3sk4ypPE5YXMZHmS213A3HpYY2LmcVKV15jr"
+  }],
+  "assertionMethod": ["did:vh:QmfGEUAcMpzo25kF2Rhn8L5FAXysfGnkzjwdKoNPi615XQ#z6MkgzBDcBFV3sk4ypPE5YXMZHmS213A3HpYY2LmcVKV15jr"],
+  "alsoKnownAs": ["https://example.com/records/42"]
+}
+```
+:::
+
 ### DID Method Operations
 
 #### Create (Register)
@@ -154,11 +213,14 @@ Creating a `did:vh` DID follows the Create algorithm defined in
    calculated later.
 
 2. **The initial [[ref: state]] object MUST be a [[ref: DIDDoc]]** (VH-Log
-   Create step 3). Its top-level `id` **MUST** be `did:vh:{SCID}`. All other
+   Create step 3), unless a [`did:vh` extension](#didvh-extensions) defines
+   it otherwise. Its top-level `id` **MUST** be `did:vh:{SCID}`. All other
    absolute references to the DID within the [[ref: DIDDoc]] **MUST** likewise
    use the placeholder form (e.g., `did:vh:{SCID}#key-1`). The
    [[ref: DIDDoc]] **MAY** contain any other content the
-   [[ref: DID Controller]] requires.
+   [[ref: DID Controller]] requires. Where an extension defines the
+   [[ref: state]] object, any reference to the DID within it **MUST** use the
+   placeholder form.
 
 3. **The [[ref: parameters]]** (VH-Log Create step 4) **MUST** follow
    [`did:vh` DID Method Parameters](#didvh-did-method-parameters), including a
@@ -529,8 +591,14 @@ sections, with the following `did:vh`-specific rules:
    exactly `did:vh:` followed by the `scid` [[ref: parameter]] of the first
    entry, and that [[ref: SCID]] **MUST** equal the [[ref: SCID]] of the `did`
    input. This check applies to every entry verified, including those of
-   further copies retrieved with `checkWatchers` or `extraWatchers`.
-7. **Result.** Return the [[ref: DIDDoc]] (unless the DID is deactivated, as
+   further copies retrieved with `checkWatchers` or `extraWatchers`. Where a
+   [`did:vh` extension](#didvh-extensions) defines the [[ref: state]] object,
+   the `scid` [[ref: parameter]] of the first entry **MUST** equal the
+   [[ref: SCID]] of the `did` input, and the extension's own checks of the
+   [[ref: state]] object apply instead of the `state.id` check.
+7. **Result.** Return the [[ref: DIDDoc]], or for a
+   [`did:vh` extension](#didvh-extensions) that defines the [[ref: state]]
+   object, the [[ref: DIDDoc]] derived as the extension defines (unless the DID is deactivated, as
    defined in [Deactivate (Revoke)](#deactivate-revoke)) with the metadata
    defined in [DID Resolution Metadata](#did-resolution-metadata). A failure
    that VH-Log defines returns the corresponding `error` listed there.
@@ -704,7 +772,9 @@ Updating a `did:vh` DID follows the Update algorithm defined in
 [[ref: VH-Log]], with the following `did:vh`-specific constraints:
 
 - **State changes (VH-Log Update step 1):** Changes are made to the
-  [[ref: DIDDoc]]. The top-level `id` **MUST** remain `did:vh:<SCID>`.
+  [[ref: DIDDoc]]. The top-level `id` **MUST** remain `did:vh:<SCID>`. Where a
+  [`did:vh` extension](#didvh-extensions) defines the [[ref: state]] object,
+  changes are made as the extension defines.
 - **Parameters:** `parameters` **MUST** follow [`did:vh` DID Method
   Parameters](#didvh-did-method-parameters).
 - **Witnesses:** If [[ref: witnesses]] are active, the [[ref: DID Controller]]
@@ -971,7 +1041,9 @@ general rules. The parameters `scid`, `updateKeys`, `nextKeyHashes`, `witness`,
 `watchers`, `deactivated`, and `ttl` are used exactly as defined in
 [[ref: VH-Log]], with one `did:vh`-specific constraint: `witness` `id` values
 **MUST** be `did:key` DIDs (see [Witnesses](#witnesses)). The `parameters`
-object **MUST NOT** include any other properties, except those listed below.
+object **MUST NOT** include any other properties, except those listed below
+and those defined by the active [`did:vh` extension](#didvh-extensions), if
+any.
 
 ::: example
 The `parameters` property in the first [[ref: DID log entry]]:
@@ -999,6 +1071,8 @@ The `parameters` property in the first [[ref: DID log entry]]:
     hash algorithm (`SHA-256` only) and [[ref: Data Integrity]] cryptosuite
     (`eddsa-jcs-2022` [[spec:di-eddsa-v1.0]] only) for both log-entry and
     witness proofs.
+  - Values defined by a [`did:vh` extension](#didvh-extensions), for a
+    [[ref: Resolver]] that implements that extension.
 
 `did:vh` does not use the `did:webvh` `portable` [[ref: parameter]]. An entry
 that includes it **MUST** be rejected.
