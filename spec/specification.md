@@ -164,6 +164,16 @@ Every rule of this specification applies to it, except that the extension
 2. Define additional [[ref: parameters]].
 3. Define any rule that [[ref: VH-Log]] permits a [[ref: specialisation]] to
    define, in place of the corresponding rule in this specification.
+4. Define additional kinds of [`src`](#the-src-option) reference, for a
+   [[ref: DID Log]] kept at a location that [[ref: VH-Log]] permits a
+   [[ref: specialisation]] to define, such as a ledger. Each kind **MUST** be
+   an absolute URL with a scheme not used by the kinds defined in this
+   specification, and the extension **MUST** define how the
+   [[ref: DID Log]] and any witness proofs are retrieved from it and the
+   retrieval protections and bounds that apply, in place of the rules in
+   [The `src` Option](#the-src-option). A [[ref: Resolver]] that does not
+   implement the extension already rejects the [[ref: DID Log]] by its
+   `method` value.
 
 For each `method` value it defines, an extension **MUST** state the
 [[ref: VH-Log]] version that the value implies, and **MUST** state which of
